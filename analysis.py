@@ -62,7 +62,7 @@ def parse(domain, filename):
         raise Exception('File "{0}" has no published policy'.format(filename))
     pp_domain = get(pp, 'domain', expected=True)
     pp_adkim = get(pp, 'adkim', 'r')
-    pp_aspd = get(pp, 'aspf', 'r')
+    pp_aspf = get(pp, 'aspf', 'r')
     pp_p = get(pp, 'p', 'none')
     pp_sp = get(pp, 'sp', 'none')
     pp_pct = int(get(pp, 'pct', '100'))
@@ -94,7 +94,7 @@ def parse(domain, filename):
         if ras is not None:
             auth_results['spf'] = (get(ras, 'domain', None), get(ras, 'result', None))
         data.append((rr_source_ip, rr_count, {'disposition': rrpe_disposition, 'dkim': rrpe_dkim, 'spf': rrpe_spf}, ri_header_from, auth_results))
-    return (domain, rm_org_name, rm_start, rm_end, {'domain': pp_domain, 'adkim': pp_adkim, 'aspd': pp_aspd, 'p': pp_p, 'sp': pp_sp, 'pct': pp_pct}, data)
+    return (domain, rm_org_name, rm_start, rm_end, {'domain': pp_domain, 'adkim': pp_adkim, 'aspf': pp_aspf, 'p': pp_p, 'sp': pp_sp, 'pct': pp_pct}, data)
 
 
 def prepare_table(files, own_ips):
@@ -116,9 +116,9 @@ def prepare_table(files, own_ips):
     for date in sorted(data.keys()):
         policies = collections.defaultdict(list)
         for file, (domain, org_name, start, end, policy, results) in data[date]:
-            policies[(policy['adkim'], policy['aspd'], policy['p'], policy['sp'], policy['pct'])].append((file, (domain, org_name, start, end, policy, results)))
+            policies[(policy['adkim'], policy['aspf'], policy['p'], policy['sp'], policy['pct'])].append((file, (domain, org_name, start, end, policy, results)))
         for policy in sorted(policies.keys()):
-            table.append([date, 'adkim={0} aspd={1} p={2} sp={3} pct={4}'.format(*policy)])
+            table.append([date, 'adkim={0} aspf={1} p={2} sp={3} pct={4}'.format(*policy)])
             for file, (domain, org_name, start, end, the_policy, results) in policies[policy]:
                 field = '{0} ({1}) for {2}'.format(domain, org_name, the_policy['domain'])
                 for source_ip, count, policy_evaluated, header_from, auth_results in results:
