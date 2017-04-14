@@ -114,9 +114,9 @@ def prepare_table(files, own_ips):
         if result is None:
             return '---'
         else:
-            return '{1}:{0}'.format(result[0], result[1])
+            return '{1}:{0}'.format(result[0], result[1][:4])
 
-    table = [None, None, ('Date', 'Policy and involved domains', '#', 'Source IP', 'Disposition', 'DKIM', 'SPF', 'Header From', 'DKIM auth', 'SPF auth'), None, None]
+    table = [None, None, ('Date', 'Policy and involved domains', '#', 'Source IP', 'Dispos', 'DKIM', 'SPF', 'Header From', 'DKIM auth', 'SPF auth'), None, None]
     for date in sorted(data.keys()):
         policies = collections.defaultdict(list)
         for file, (domain, org_name, start, end, policy, results) in data[date]:
@@ -131,7 +131,7 @@ def prepare_table(files, own_ips):
                                   field,
                                   count,
                                   (source_ip, 'green' if is_own else 'yellow'),
-                                  (policy_evaluated['disposition'], 'green' if (policy_evaluated['disposition'] == 'none') == (is_own or policy[2] == 'none') else 'red'),
+                                  (policy_evaluated['disposition'][:6], 'green' if (policy_evaluated['disposition'] == 'none') == (is_own or policy[2] == 'none') else 'red'),
                                   (policy_evaluated['dkim'], 'green' if (policy_evaluated['dkim'] == 'pass') == is_own else 'red'),
                                   (policy_evaluated['spf'], 'green' if (policy_evaluated['spf'] == 'pass') == is_own else 'red'),
                                   header_from,
@@ -151,4 +151,4 @@ if 'OWN_IPS' not in globals():
 
 files = scan('.')
 dmarc_table = prepare_table(files, own_ips=OWN_IPS)
-print(table.format_table(dmarc_table, mode='pretty_text'))
+print(table.format_table(dmarc_table, mode='pretty_text', padding=0))
