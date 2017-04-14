@@ -10,3 +10,5 @@ to adjust the code.
 
 Before running, edit `analysis.py` and set `OWN_IPS` to the set of acceptable
 sending IPs for your mail server.
+
+The utility `extract.py` allows to batch extract compressed DMARC reports.
