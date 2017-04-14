@@ -20,9 +20,13 @@ def scan(path):
         for filename in filenames:
             if filename.endswith('.xml'):
                 s = filename[:-4].split('!')
-                if len(s) != 4:
+                if len(s) == 4:
+                    remote, sender, start, end = s
+                elif len(s) == 5:
+                    remote, sender, start, end, _ = s
+                else:
+                    print("Skipping file '{}'...".format(os.path.join(dirpath, filename)))
                     continue
-                remote, sender, start, end = s
                 start = datetime.datetime.fromtimestamp(int(start))
                 end = datetime.datetime.fromtimestamp(int(end))
                 result.append((start, end, sender, remote, os.path.join(dirpath, filename)))
