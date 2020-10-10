@@ -1,4 +1,4 @@
-def format_table(table, mode='text'):
+def format_table(table, mode='text', padding=1, max_cell_width=None):
     """Pretty-prints table.
 
     A `None` entry is interpreted as a horizontal line. Multiple `None` entries
@@ -21,7 +21,7 @@ def format_table(table, mode='text'):
         def make_line(columns, repertoire):
             line = repertoire[0]
             for i, c in enumerate(columns):
-                line += repertoire[3] * (c + 2)
+                line += repertoire[3] * (c + 2 * padding)
                 line += repertoire[1 if i + 1 < len(columns) else 2]
             return line
 
@@ -56,6 +56,14 @@ def format_table(table, mode='text'):
                 else:
                     output_table.append(None)
                 last_was_none = True
+        if max_cell_width is not None:
+            if isinstance(max_cell_width, (tuple, list)):
+                for i in range(max(len(columns), len(max_cell_width))):
+                    if max_cell_width[i] is not None:
+                        columns[i] = min(columns[i], max_cell_width[i])
+            else:
+                for i in range(len(columns)):
+                    columns[i] = min(columns[i], max_cell_width)
         output = []
         for i, row in enumerate(output_table):
             li = 3 + (0 if i == 0 else 2 if i + 1 == len(output_table) else 1) * 8
@@ -67,8 +75,10 @@ def format_table(table, mode='text'):
                 line = repertoire[0]
                 if len(row) < len(columns):
                     row += [('', None)] * (len(columns) - len(row))
-                for i, (w, (text, col)) in enumerate(zip(columns, row)):
+                for j, (w, (text, col)) in enumerate(zip(columns, row)):
                     c = text
+                    if len(c) > columns[j]:
+                        c = c[:columns[j]]
                     if col is not None:
                         if col == 'green':
                             c = colorize(c, 32)
@@ -78,7 +88,7 @@ def format_table(table, mode='text'):
                             c = colorize(c, 33)
                         else:
                             print("Unknown color '{0}'!".format(col))
-                    line += ' ' + c + (' ' * (w - len(text))) + ' ' + repertoire[1 if i + 1 < len(columns) else 2]
+                    line += ' ' * padding + c + (' ' * (w - len(text))) + ' ' * padding + repertoire[1 if j + 1 < len(columns) else 2]
             output.append(line)
         return '\n'.join(output)
 

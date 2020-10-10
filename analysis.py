@@ -1,17 +1,15 @@
-#!/usr/bin/python
-
+#!/usr/bin/python3
+import argparse
 import collections
 import datetime
 import os
+import re
 import sys
-import table
+import typing as t
 import xml.etree.ElementTree
 
-
-# Uncomment and modify the following line so that it specifies all IPv4 and IPv6 addresses
-# your mail server uses to send mail.
-
-# OWN_IPS = {'192.168.1.1', '10.0.0.2', '2a01:1234:5678:abcd:efgh::1'}
+import config
+import table
 
 
 def scan(path):
@@ -101,12 +99,46 @@ def parse(domain, filename):
     return (domain, rm_org_name, rm_start, rm_end, {'domain': pp_domain, 'adkim': pp_adkim, 'aspf': pp_aspf, 'p': pp_p, 'sp': pp_sp, 'pct': pp_pct}, data)
 
 
-def prepare_table(files, own_ips):
+def parse_date(date_str):
+    if date_str is None:
+        return None
+    m = re.match('^([0-9]{4})-([0-9]{2})-([0-9]{2})$', date_str)
+    try:
+        if m:
+            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except:
+        pass
+    raise ValueError('Cannot parse date in YYYY-MM-DD format: "{0}"'.format(date_str))
+
+
+def is_success(result):
+    policy_evaluated = result[2]
+    return policy_evaluated['dkim'] == 'pass' and policy_evaluated['spf'] == 'pass' and policy_evaluated['disposition'] == 'none'
+
+
+def prepare_table(files, configuration: config.Configuration, arguments: t.Any):
+    from_date = parse_date(arguments.from_date)
+    until_date = parse_date(arguments.until_date)
+
     data = collections.defaultdict(list)
     for file in files:
         try:
             domain, org_name, start, end, policy, results = parse(file[3], file[4])
-            data[start.date()].append((file, (domain, org_name, start, end, policy, results)))
+            if arguments.domain is not None:
+                if not policy['domain'] in arguments.domain:
+                    continue
+            if from_date is not None:
+                if start.date() < from_date:
+                    continue
+            if until_date is not None:
+                if start.date() > until_date:
+                    continue
+            if arguments.only_success:
+                results = [result for result in results if is_success(result)]
+            elif not arguments.all:
+                results = [result for result in results if not is_success(result)]
+            if results:
+                data[start.date()].append((file, (domain, org_name, start, end, policy, results)))
         except Exception as e:
             print('Error while parsing {0}: {1}'.format(file[4], e))
 
@@ -116,7 +148,9 @@ def prepare_table(files, own_ips):
         else:
             return '{1}:{0}'.format(result[0], result[1][:4])
 
-    table = [None, None, ('Date', 'Policy and involved domains', '#', 'Source IP', 'Dispos', 'DKIM', 'SPF', 'Header From', 'DKIM auth', 'SPF auth'), None, None]
+    heading = ('Date', 'Policy and involved domains', '#', 'Source IP', 'Dispos', 'DKIM', 'SPF', 'Header From', 'DKIM auth', 'SPF auth')
+    max_cell_width = (None, None, None, None, None, None, None, 20, 30, 25)
+    table = [None, None, heading, None, None]
     for date in sorted(data.keys()):
         policies = collections.defaultdict(list)
         for file, (domain, org_name, start, end, policy, results) in data[date]:
@@ -126,7 +160,10 @@ def prepare_table(files, own_ips):
             for file, (domain, org_name, start, end, the_policy, results) in policies[policy]:
                 field = '{0} ({1}) for {2}'.format(domain, org_name, the_policy['domain'])
                 for source_ip, count, policy_evaluated, header_from, auth_results in results:
-                    is_own = (source_ip in own_ips)
+                    if configuration.identify_own_ips_from_dkim_and_spf:
+                        is_own = (policy_evaluated['dkim'] == 'pass' and policy_evaluated['spf'] == 'pass')
+                    else:
+                        is_own = configuration.is_own_ip(source_ip, date)
                     table.append([None,
                                   field,
                                   count,
@@ -142,13 +179,34 @@ def prepare_table(files, own_ips):
                     table.append([None, field])
         table.append(None)
     table.append(None)
-    return table
+    table.append(heading)
+    table.append(None)
+    table.append(None)
+    return table, max_cell_width
 
 
-if 'OWN_IPS' not in globals():
-    print("Please first set OWN_IPS to your own set of IP addresses before running this script!")
-    sys.exit()
+def main(args):
+    parser = argparse.ArgumentParser(prog=os.path.basename(args[0]), description='DMARC report analyzer.')
 
-files = scan('.')
-dmarc_table = prepare_table(files, own_ips=OWN_IPS)
-print(table.format_table(dmarc_table, mode='pretty_text', padding=0))
+    parser.add_argument('-a', '--all', action='store_true', help='Show all records')
+    parser.add_argument('--only-success', action='store_true', help='Show only successful records')
+    parser.add_argument('--domain', action='append', help='Limit to given domains. Specify once per domain')
+    parser.add_argument('--from-date', help='Limit reports to ones not before this date. Date must be specified as YYYY-MM-DD.')
+    parser.add_argument('--until-date', help='Limit reports to ones not after this date. Date must be specified as YYYY-MM-DD.')
+
+    arguments = parser.parse_args(args[1:])
+
+    try:
+        configuration = config.load_config()
+        files = scan('files/')
+        dmarc_table, max_cell_width = prepare_table(files, configuration=configuration, arguments=arguments)
+    except ValueError as e:
+        print('ERROR: {0}'.format(e))
+        return -1
+
+    print(table.format_table(dmarc_table, mode='pretty_text', padding=0, max_cell_width=max_cell_width))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[:]))
