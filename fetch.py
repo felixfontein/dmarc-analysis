@@ -45,7 +45,7 @@ with imapclient.IMAPClient(host=configuration.imap_server) as client:
             # Found attachment. Write to disk.
             filename = '{0}-{1}'.format(message_id, part.get_filename())
             if os.path.exists(filename):
-                print('{0} already exists!'.format(filename))
+                print('  WARNING: {0} already exists!'.format(filename))
                 continue
             with open(filename, 'wb') as f:
                 f.write(part.get_content())
@@ -54,3 +54,5 @@ with imapclient.IMAPClient(host=configuration.imap_server) as client:
         # On success, mark email as read
         if success:
             client.add_flags(message_id, imapclient.SEEN, silent=True)
+        else:
+            print('  WARNING: cound not extract attachment!')

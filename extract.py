@@ -14,14 +14,17 @@ def process_zip_file(filename, dest):
         if len(f.namelist()) != 1:
             raise Exception("ZIP archive '{}' has not precisely one file!".format(filename))
         xmlfile = f.namelist()[0]
+        if '/' in xmlfile:
+            xmlfile = xmlfile.rsplit('/', 1)[1]
         if '/' in xmlfile or '\\' in xmlfile:
             raise Exception("ZIP archive '{}' contains a file '{}' in a subfolder!".format(filename, xmlfile))
         fn, ext = os.path.splitext(xmlfile)
         if ext != '.xml':
             raise Exception("ZIP archive '{}' contains a non-XML file '{}'!".format(filename, xmlfile))
         bn = os.path.splitext(os.path.basename(real_filename))[0]
-        if fn != bn:
-            raise Exception("ZIP archive '{}' contains a XML file called '{}', but it should contain one called '{}'!".format(filename, fn, bn))
+        bns = [bn, os.path.splitext(bn)[0]]
+        if fn not in bns:
+            raise Exception("ZIP archive '{}' contains a XML file called '{}', but it should contain one called {}!".format(filename, fn, ' or '.join(["'{}'".format(bn) for bn in bns])))
         new_filename = '{}-{}'.format(message_id, xmlfile)
         if os.path.exists(os.path.join(dest, new_filename)):
             raise Exception("Destination file '{}' already exists!".format(new_filename))
