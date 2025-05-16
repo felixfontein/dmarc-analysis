@@ -33,7 +33,7 @@ def scan(path):
 
 def parse(domain, filename):
     def get(node, name, default=None, expected=False):
-        child = node.find(name)
+        child = node.find('{*}' + name)
         if child is not None:
             if child.text is None:
                 if expected:
@@ -52,14 +52,14 @@ def parse(domain, filename):
         return datetime.datetime.fromtimestamp(int(timestamp))
 
     e = xml.etree.ElementTree.parse(filename).getroot()
-    rm = e.find('report_metadata')
+    rm = e.find('{*}report_metadata')
     if rm is None:
         raise Exception('File "{0}" has no metadata reporting'.format(filename))
     rm_org_name = get(rm, 'org_name', None)
-    rm_dr = rm.find('date_range')
+    rm_dr = rm.find('{*}date_range')
     rm_start = convert_timestamp(get(rm_dr, 'begin', expected=True))
     rm_end = convert_timestamp(get(rm_dr, 'end', expected=True))
-    pp = e.find('policy_published')
+    pp = e.find('{*}policy_published')
     if pp is None:
         raise Exception('File "{0}" has no published policy'.format(filename))
     pp_domain = get(pp, 'domain', expected=True)
@@ -69,30 +69,30 @@ def parse(domain, filename):
     pp_sp = get(pp, 'sp', 'none')
     pp_pct = int(get(pp, 'pct', '100'))
     data = []
-    for i, r in enumerate(e.findall('record')):
-        rr = r.find('row')
+    for i, r in enumerate(e.findall('{*}record')):
+        rr = r.find('{*}row')
         if rr is None:
             raise Exception('File "{0}" has no row data in record {1}'.format(filename, i + 1))
         rr_source_ip = get(rr, 'source_ip', expected=True)
         rr_count = int(get(rr, 'count', 0))
-        rrpe = rr.find('policy_evaluated')
+        rrpe = rr.find('{*}policy_evaluated')
         if rrpe is None:
             raise Exception('File "{0}" has no evaluated policy in record {1}'.format(filename, i + 1))
         rrpe_disposition = get(rrpe, 'disposition', expected=True)
         rrpe_dkim = get(rrpe, 'dkim', expected=True)
         rrpe_spf = get(rrpe, 'spf', expected=True)
-        ri = r.find('identifiers')
+        ri = r.find('{*}identifiers')
         if ri is None:
             raise Exception('File "{0}" has no identifier in record {1}'.format(filename, i + 1))
         ri_header_from = get(ri, 'header_from', expected=True)
-        ra = r.find('auth_results')
+        ra = r.find('{*}auth_results')
         if ra is None:
             raise Exception('File "{0}" has no authentication results in record {1}'.format(filename, i + 1))
         auth_results = {}
-        rad = ra.find('dkim')
+        rad = ra.find('{*}dkim')
         if rad is not None:
             auth_results['dkim'] = (get(rad, 'domain', None), get(rad, 'result', None))
-        ras = ra.find('spf')
+        ras = ra.find('{*}spf')
         if ras is not None:
             auth_results['spf'] = (get(ras, 'domain', None), get(ras, 'result', None))
         data.append((rr_source_ip, rr_count, {'disposition': rrpe_disposition, 'dkim': rrpe_dkim, 'spf': rrpe_spf}, ri_header_from, auth_results))
@@ -172,8 +172,8 @@ def prepare_table(files, configuration: config.Configuration, arguments: t.Any):
                                   (policy_evaluated['dkim'], 'green' if (policy_evaluated['dkim'] == 'pass') == is_own else 'red'),
                                   (policy_evaluated['spf'], 'green' if (policy_evaluated['spf'] == 'pass') == is_own else 'red'),
                                   header_from,
-                                  format_result(auth_results.get('dkim', None)),
-                                  format_result(auth_results.get('spf', None))])
+                                  format_result(auth_results.get('{*}dkim', None)),
+                                  format_result(auth_results.get('{*}spf', None))])
                     field = None
                 if field is not None:
                     table.append([None, field])
