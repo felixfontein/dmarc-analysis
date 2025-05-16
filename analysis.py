@@ -23,7 +23,7 @@ def scan(path):
                 elif len(s) == 5:
                     remote, sender, start, end, _ = s
                 else:
-                    print("Skipping file '{}'...".format(os.path.join(dirpath, filename)))
+                    print("Skipping file '{}'...".format(os.path.join(dirpath, filename)), file=sys.stderr)
                     continue
                 start = datetime.datetime.fromtimestamp(int(start))
                 end = datetime.datetime.fromtimestamp(int(end))
@@ -140,7 +140,7 @@ def prepare_table(files, configuration: config.Configuration, arguments: t.Any):
             if results:
                 data[start.date()].append((file, (domain, org_name, start, end, policy, results)))
         except Exception as e:
-            print('Error while parsing {0}: {1}'.format(file[4], e))
+            print('Error while parsing {0}: {1}'.format(file[4], e), file=sys.stderr)
 
     def format_result(result):
         if result is None:
@@ -201,7 +201,7 @@ def main(args):
         files = scan('files/')
         dmarc_table, max_cell_width = prepare_table(files, configuration=configuration, arguments=arguments)
     except ValueError as e:
-        print('ERROR: {0}'.format(e))
+        print('ERROR: {0}'.format(e), file=sys.stderr)
         return -1
 
     print(table.format_table(dmarc_table, mode='pretty_text', padding=0, max_cell_width=max_cell_width))
